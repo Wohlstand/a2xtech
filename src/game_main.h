@@ -47,6 +47,7 @@ void NextLevel();
 void UpdateMacro();
 //! loads the world
 void OpenWorld(std::string FilePath);
+void FindWldStars();
 //! Loop for world select
 void WorldLoop();
 

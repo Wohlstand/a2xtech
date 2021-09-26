@@ -50,6 +50,7 @@ struct Compatibility_t
     // 1.3.5.2
     bool fix_swooper_start_while_inactive;
     bool fix_FreezeNPCs_no_reset;
+    bool enable_world_map_level_stars;
     // 1.3.6
 
 

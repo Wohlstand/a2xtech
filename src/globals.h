@@ -849,6 +849,10 @@ struct WorldLevel_t
 //End Type
     int64_t Z = 0;
     int index = 0;
+
+// Display number of stars (if available)
+    int curStars = 0;
+    int maxStars = 0;
 };
 
 //Public Type Warp 'warps such as pipes and doors
@@ -1020,6 +1024,8 @@ struct WorldPlayer_t
 //    LevelName As String
     std::string LevelName;
 //End Type
+    int levelStarsCur = 0;
+    int levelStarsMax = 0;
 };
 
 //Public Type Layer

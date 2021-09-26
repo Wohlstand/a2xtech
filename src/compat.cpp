@@ -76,6 +76,7 @@ static void compatInit(Compatibility_t &c)
     // 1.3.5.2
     c.fix_swooper_start_while_inactive = true;
     c.fix_FreezeNPCs_no_reset = false;
+    c.enable_world_map_level_stars = true;
     // 1.3.6
 
 
@@ -104,6 +105,7 @@ static void compatInit(Compatibility_t &c)
         // 1.3.5.2
         c.fix_swooper_start_while_inactive = false;
         c.fix_FreezeNPCs_no_reset = false;
+        c.enable_world_map_level_stars = false;
         // 1.3.6
     }
 
@@ -182,6 +184,7 @@ static void loadCompatIni(Compatibility_t &c, const std::string &fileName)
         // 1.3.5.2
         compat.read("fix-swooper-start-while-inactive", c.fix_swooper_start_while_inactive, c.fix_swooper_start_while_inactive);
         compat.read("fix-FreezeNPCs-no-reset", c.fix_FreezeNPCs_no_reset, c.fix_FreezeNPCs_no_reset);
+        compat.read("enable-world-map-level-stars", c.enable_world_map_level_stars, c.enable_world_map_level_stars);
         // 1.3.6
     }
     // 1.3.4

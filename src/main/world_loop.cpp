@@ -120,8 +120,11 @@ void WorldLoop()
             {
                 if(WorldLevel[curWorldLevel].LevelExit[A] == LevelBeatCode || WorldLevel[curWorldLevel].LevelExit[A] == -1)
                 {
-                    WorldPlayer[1].LevelName = WorldLevel[curWorldLevel].LevelName;
-                    LevelPath(WorldLevel[curWorldLevel], A);
+                    auto &l = WorldLevel[curWorldLevel];
+                    WorldPlayer[1].LevelName = l.LevelName;
+                    WorldPlayer[1].levelStarsCur = l.curStars;
+                    WorldPlayer[1].levelStarsMax = l.maxStars;
+                    LevelPath(l, A);
                 }
             }
 
@@ -136,11 +139,13 @@ void WorldLoop()
             //for(A = 1; A <= numWorldLevels; A++)
             for(auto *t : larr)
             {
-                WorldLevel_t &level = *t;
-                if(CheckCollision(WorldPlayer[1].Location, level.Location))
+                WorldLevel_t &l = *t;
+                if(CheckCollision(WorldPlayer[1].Location, l.Location))
                 {
-                    curWorldLevel = level.index;
-                    WorldPlayer[1].LevelName = level.LevelName;
+                    curWorldLevel = l.index;
+                    WorldPlayer[1].LevelName = l.LevelName;
+                    WorldPlayer[1].levelStarsCur = l.curStars;
+                    WorldPlayer[1].levelStarsMax = l.maxStars;
                     break;
                 }
             }
@@ -230,10 +235,12 @@ void WorldLoop()
         //for(A = 1; A <= numWorldLevels; A++)
         for(auto *t : larr)
         {
-            WorldLevel_t &level = *t;
-            if(CheckCollision(tempLocation, level.Location))
+            WorldLevel_t &l = *t;
+            if(CheckCollision(tempLocation, l.Location))
             {
-                WorldPlayer[1].LevelName = level.LevelName;
+                WorldPlayer[1].LevelName = l.LevelName;
+                WorldPlayer[1].levelStarsCur = l.curStars;
+                WorldPlayer[1].levelStarsMax = l.maxStars;
                 break;
             }
         }

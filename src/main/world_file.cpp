@@ -384,3 +384,34 @@ void ClearWorld()
 //        MaxWorldStars = 0;
 //    }
 }
+
+void FindWldStars()
+{
+    LevelData head;
+
+    for(int A = 1; A <= numWorldLevels; A++)
+    {
+        auto &l = WorldLevel[A];
+        if(!l.FileName.empty())
+        {
+            std::string lFile = FileNamePath + l.FileName;
+            addMissingLvlSuffix(lFile);
+
+            if(Files::fileExists(lFile))
+            {
+                if(FileFormats::OpenLevelFileHeader(lFile, head))
+                {
+                    l.maxStars = head.stars;
+                    l.curStars = 0;
+
+                    for(int B = 1; B <= numStars; B++)
+                    {
+                        if(SDL_strcasecmp(Star[B].level.c_str(), l.FileName.c_str()) == 0)
+                            l.curStars++;
+                    }
+                }
+            }
+
+        }
+    }
+}
