@@ -87,12 +87,68 @@ static SDL_atomic_t         loadingProgrssMax = {};
 static SDL_Thread*          loadingThread = nullptr;
 #endif
 
-static constexpr int c_menuSavesLength = maxSaveSlots + 2;
-static constexpr int c_menuSavesFooterHint = (c_menuSavesLength * 30) - 30;
-static constexpr int c_menuItemSavesEndList = maxSaveSlots - 1;
-static constexpr int c_menuItemSavesCopy = maxSaveSlots;
-static constexpr int c_menuItemSavesDelete = maxSaveSlots + 1;
-static constexpr int c_menuSavesOffsetY = (maxSaveSlots - 3) * 30;
+static constexpr int c_menuSavesPerPage     = 3;
+static constexpr int c_menuSavesPageLength  = c_menuSavesPerPage + 2;
+static constexpr int c_menuSavesPageCount   = (maxSaveSlots + c_menuSavesPerPage - 1) / c_menuSavesPerPage;
+static constexpr int c_menuSavesFooterHint  = (c_menuSavesPageLength * 30) - 30;
+static constexpr int c_menuItemSavesEndList = c_menuSavesPageCount * c_menuSavesPageLength - 1;
+static constexpr int c_menuItemSavesCopy    = -2;
+static constexpr int c_menuItemSavesDelete  = -1;
+
+// returns the offset in MenuCursor items for the current page
+static inline int s_GetSavesPageMenuOffset()
+{
+    return (MenuCursor / c_menuSavesPageLength) * c_menuSavesPageLength;
+}
+
+// returns the offset in Save Slots for the current page
+static inline int s_GetSavesPageSaveOffset()
+{
+    return (MenuCursor / c_menuSavesPageLength) * c_menuSavesPerPage;
+}
+
+// returns the number of save pages that actually exist currently
+static inline int s_GetCurrentSavesPageCount()
+{
+    int max_all = -1;
+    int max_any = -1;
+
+    for(int page_i = 0; page_i < c_menuSavesPageCount; page_i++)
+    {
+        bool any = false;
+        bool all = true;
+
+        int page_base = c_menuSavesPerPage * page_i;
+        for(int slot_i = 1; slot_i <= c_menuSavesPerPage && page_base + slot_i <= maxSaveSlots; slot_i++)
+        {
+            if(SaveSlotInfo[page_base + slot_i].Progress >= 0)
+                any = true;
+            else
+                all = false;
+        }
+
+        if(any)
+            max_any = page_i;
+
+        if(all)
+            max_all = page_i;
+    }
+
+    return SDL_min(SDL_max(SDL_max(max_all + 1, max_any), MenuCursor / c_menuSavesPageLength) + 1, c_menuSavesPageCount);
+}
+
+// returns c_menuItemSavesCopy, c_menuItemSavesDelete, or an actual save slot
+static inline int s_GetSavesActionIdx(bool check_bounds = true)
+{
+    int item = ((MenuCursor + 2) % c_menuSavesPageLength) - 2;
+    if(item >= 0)
+        item += (MenuCursor / c_menuSavesPageLength) * c_menuSavesPerPage + 1;
+
+    if(check_bounds && item > maxSaveSlots)
+        item = maxSaveSlots;
+
+    return item;
+}
 
 int NumSelectWorld = 0;
 int NumSelectWorldEditable = 0;
@@ -260,9 +316,6 @@ void GetMenuPos(int* MenuX, int* MenuY)
         else
             *MenuY = ScreenH - 220;
     }
-
-    if(MenuMode >= MENU_SELECT_SLOT_BASE && MenuMode < MENU_SELECT_SLOT_END)
-        *MenuY -= c_menuSavesOffsetY;
 }
 
 static void s_findRecentEpisode()
@@ -671,6 +724,8 @@ bool mainMenuUpdate()
         if(!g_pollingInput && (MenuMode != MENU_CHARACTER_SELECT_NEW && MenuMode != MENU_CHARACTER_SELECT_NEW_BM && MenuMode != MENU_INTRO))
         {
             int cursorDelta = 0;
+            bool page_flip = false;
+            int pre_flip_page_count = 0;
 
             if(upPressed)
             {
@@ -692,6 +747,31 @@ bool mainMenuUpdate()
 
                 MenuCursorCanMove = false;
             }
+            else if(MenuMode >= MENU_SELECT_SLOT_BASE && MenuMode < MENU_SELECT_SLOT_END)
+            {
+                if(leftPressed || SharedCursor.ScrollUp)
+                {
+                    if(MenuCursorCanMove && (MenuCursor % c_menuSavesPageLength < c_menuSavesPerPage) && (pre_flip_page_count = s_GetCurrentSavesPageCount()) > 1)
+                    {
+                        MenuCursor -= c_menuSavesPageLength;
+                        cursorDelta = -1;
+                        page_flip = true;
+                    }
+
+                    MenuCursorCanMove = false;
+                }
+                else if(rightPressed || SharedCursor.ScrollDown)
+                {
+                    if(MenuCursorCanMove && (MenuCursor % c_menuSavesPageLength < c_menuSavesPerPage) && (pre_flip_page_count = s_GetCurrentSavesPageCount()) > 1)
+                    {
+                        MenuCursor += c_menuSavesPageLength;
+                        cursorDelta = -1;
+                        page_flip = true;
+                    }
+
+                    MenuCursorCanMove = false;
+                }
+            }
 
             if(cursorDelta != 0)
             {
@@ -708,7 +788,55 @@ bool mainMenuUpdate()
                             MenuCursor = 0;
                     }
                 }
-                PlaySoundMenu(SFX_Slide);
+
+                if(MenuMode >= MENU_SELECT_SLOT_BASE && MenuMode < MENU_SELECT_SLOT_END)
+                {
+                    if(page_flip)
+                    {
+                        // total wrap
+                        if(MenuCursor < 0)
+                            MenuCursor += pre_flip_page_count * c_menuSavesPageLength;
+                        else if(MenuCursor >= pre_flip_page_count * c_menuSavesPageLength)
+                            MenuCursor -= pre_flip_page_count * c_menuSavesPageLength;
+
+                        // backup total wrap
+                        if(MenuCursor < 0)
+                            MenuCursor += c_menuItemSavesEndList + 1;
+                        else if(MenuCursor > c_menuItemSavesEndList)
+                            MenuCursor -= c_menuItemSavesEndList + 1;
+                    }
+                    else
+                    {
+                        // page wrap
+                        if(MenuCursor < 0 || (upPressed && (MenuCursor % c_menuSavesPageLength) == c_menuSavesPageLength - 1))
+                            MenuCursor += c_menuSavesPageLength;
+                        else if(downPressed && (MenuCursor % c_menuSavesPageLength) == 0)
+                            MenuCursor -= c_menuSavesPageLength;
+                    }
+
+                    // fix the cursor if invalid
+                    bool actions_okay = (MenuMode == MENU_SELECT_SLOT_1P || MenuMode == MENU_SELECT_SLOT_2P);
+                    if(!actions_okay && s_GetSavesActionIdx() <= 0)
+                    {
+                        if(downPressed)
+                            MenuCursor = s_GetSavesPageMenuOffset();
+                        else
+                            MenuCursor = s_GetSavesPageMenuOffset() + c_menuSavesPerPage - 1;
+                    }
+
+                    if(s_GetSavesActionIdx(false) > maxSaveSlots)
+                    {
+                        if(downPressed)
+                            MenuCursor = s_GetSavesPageMenuOffset() + actions_okay * c_menuSavesPerPage;
+                        else
+                            MenuCursor = s_GetSavesPageMenuOffset() + (maxSaveSlots % c_menuSavesPerPage) - 1;
+                    }
+                }
+
+                if(page_flip)
+                    PlaySoundMenu(SFX_Saw);
+                else
+                    PlaySoundMenu(SFX_Slide);
             }
 
         } // No keyboard/Joystick grabbing active
@@ -964,7 +1092,10 @@ bool mainMenuUpdate()
                 }
                 else
                 {
-                    MenuCursor = selSave - 1;
+                    int save_offset = selSave - 1;
+                    int save_page = save_offset / c_menuSavesPerPage;
+                    MenuCursor = save_page * c_menuSavesPageLength + save_offset % c_menuSavesPerPage;
+
                     if(menuPlayersNum == 1)
                         MenuMode = MENU_SELECT_SLOT_1P;
                     else
@@ -1482,7 +1613,23 @@ bool mainMenuUpdate()
         else if(MenuMode == MENU_SELECT_SLOT_1P || MenuMode == MENU_SELECT_SLOT_2P)
         {
             if(SharedCursor.Move)
-                s_handleMouseMove(c_menuItemSavesDelete, MenuX, MenuY, 300, 30);
+            {
+                int old_cursor = MenuCursor;
+
+                int page_offset = s_GetSavesPageMenuOffset();
+                MenuCursor -= page_offset;
+
+                SoundPause[SFX_Slide] += 1;
+                s_handleMouseMove(c_menuSavesPageLength - 1, MenuX, MenuY, 300, 30);
+                SoundPause[SFX_Slide] -= 1;
+
+                MenuCursor += page_offset;
+
+                if(s_GetSavesActionIdx(false) > maxSaveSlots)
+                    MenuCursor = old_cursor;
+                else if(MenuCursor != old_cursor)
+                    PlaySoundMenu(SFX_Slide);
+            }
 
             if(MenuCursorCanMove || MenuMouseClick)
             {
@@ -1501,9 +1648,11 @@ bool mainMenuUpdate()
                 {
                     PlaySoundMenu(SFX_Do);
 
-                    if(MenuCursor >= 0 && MenuCursor <= c_menuItemSavesEndList) // Select the save slot, but still need to select players
+                    int action = s_GetSavesActionIdx();
+
+                    if(action > 0) // Select the save slot, but still need to select players
                     {
-                        selSave = MenuCursor + 1;
+                        selSave = action;
                         if(MenuMode == MENU_SELECT_SLOT_2P)
                             ConnectScreen::MainMenu_Start(2);
                         else
@@ -1511,15 +1660,15 @@ bool mainMenuUpdate()
                         MenuMode = MENU_CHARACTER_SELECT_NEW;
                         MenuCursorCanMove = false;
                     }
-                    else if(MenuCursor == c_menuItemSavesCopy) // Copy the gamesave
+                    else if(action == c_menuItemSavesCopy) // Copy the gamesave
                     {
-                        MenuCursor = 0;
+                        MenuCursor = s_GetSavesPageMenuOffset();
                         MenuMode += MENU_SELECT_SLOT_COPY_S1_ADD;
                         MenuCursorCanMove = false;
                     }
-                    else if(MenuCursor == c_menuItemSavesDelete) // Delete the gamesave
+                    else if(action == c_menuItemSavesDelete) // Delete the gamesave
                     {
-                        MenuCursor = 0;
+                        MenuCursor = s_GetSavesPageMenuOffset();
                         MenuMode += MENU_SELECT_SLOT_DELETE_ADD;
                         MenuCursorCanMove = false;
                     }
@@ -1528,8 +1677,8 @@ bool mainMenuUpdate()
 
             if(MenuMode == MENU_SELECT_SLOT_1P || MenuMode == MENU_SELECT_SLOT_2P)
             {
-                if(MenuCursor > c_menuItemSavesDelete) MenuCursor = 0;
-                if(MenuCursor < 0) MenuCursor = c_menuItemSavesDelete;
+                if(MenuCursor > c_menuItemSavesEndList) MenuCursor = 0;
+                if(MenuCursor < 0) MenuCursor = c_menuItemSavesEndList;
             }
         } // Save Slot Select
 
@@ -1538,7 +1687,17 @@ bool mainMenuUpdate()
                 MenuMode == MENU_SELECT_SLOT_1P_COPY_S2 || MenuMode == MENU_SELECT_SLOT_2P_COPY_S2)
         {
             if(SharedCursor.Move)
-                s_handleMouseMove(c_menuItemSavesEndList, MenuX, MenuY, 300, 30);
+            {
+                int page_offset = s_GetSavesPageMenuOffset();
+                MenuCursor -= page_offset;
+
+                int item_bound = c_menuSavesPerPage;
+                if(page_offset == c_menuSavesPageLength * (c_menuSavesPageCount - 1))
+                    item_bound = SDL_min(item_bound, maxSaveSlots % c_menuSavesPerPage);
+
+                s_handleMouseMove(item_bound - 1, MenuX, MenuY, 300, 30);
+                MenuCursor += page_offset;
+            }
 
             if(MenuCursorCanMove || MenuMouseClick)
             {
@@ -1552,7 +1711,7 @@ bool mainMenuUpdate()
                     else
                     {
                         MenuMode -= MENU_SELECT_SLOT_COPY_S1_ADD;
-                        MenuCursor = c_menuItemSavesCopy;
+                        MenuCursor = s_GetSavesPageMenuOffset() + (c_menuSavesPageLength + c_menuItemSavesCopy);
                     }
 
                     MenuCursorCanMove = false;
@@ -1560,8 +1719,9 @@ bool mainMenuUpdate()
                 }
                 else if(menuDoPress || MenuMouseClick)
                 {
-                    SDL_assert_release(IF_INRANGE(MenuCursor, 0, maxSaveSlots - 1));
-                    int slot = MenuCursor + 1;
+                    int slot = s_GetSavesActionIdx();
+
+                    SDL_assert_release(IF_INRANGE(slot, 1, maxSaveSlots));
 
                     if(MenuMode == MENU_SELECT_SLOT_1P_COPY_S1 || MenuMode == MENU_SELECT_SLOT_2P_COPY_S1)
                     {
@@ -1588,7 +1748,7 @@ bool mainMenuUpdate()
                         CopySave(selWorld, menuCopySaveSrc, menuCopySaveDst);
                         FindSaves();
                         MenuMode -= MENU_SELECT_SLOT_COPY_S2_ADD;
-                        MenuCursor = c_menuItemSavesCopy;
+                        MenuCursor = s_GetSavesPageMenuOffset() + (c_menuSavesPageLength + c_menuItemSavesCopy);
                         MenuCursorCanMove = false;
                     }
                 }
@@ -1606,7 +1766,17 @@ bool mainMenuUpdate()
         else if(MenuMode == MENU_SELECT_SLOT_1P_DELETE || MenuMode == MENU_SELECT_SLOT_2P_DELETE)
         {
             if(SharedCursor.Move)
-                s_handleMouseMove(c_menuItemSavesEndList, MenuX, MenuY, 300, 30);
+            {
+                int page_offset = s_GetSavesPageMenuOffset();
+                MenuCursor -= page_offset;
+
+                int item_bound = c_menuSavesPerPage;
+                if(page_offset == c_menuSavesPageLength * (c_menuSavesPageCount - 1))
+                    item_bound = SDL_min(item_bound, maxSaveSlots % c_menuSavesPerPage);
+
+                s_handleMouseMove(item_bound - 1, MenuX, MenuY, 300, 30);
+                MenuCursor += page_offset;
+            }
 
             if(MenuCursorCanMove || MenuMouseClick)
             {
@@ -1614,16 +1784,23 @@ bool mainMenuUpdate()
                 {
 //'save select back
                     MenuMode -= MENU_SELECT_SLOT_DELETE_ADD;
-                    MenuCursor = c_menuItemSavesDelete;
+                    MenuCursor = s_GetSavesPageMenuOffset() + (c_menuSavesPageLength + c_menuItemSavesDelete);
+
                     PlaySoundMenu(SFX_Do);
                     MenuCursorCanMove = false;
                 }
                 else if(menuDoPress || MenuMouseClick)
                 {
-                    MenuMode -= MENU_SELECT_SLOT_DELETE_ADD;
-                    DeleteSave(selWorld, (MenuCursor + 1));
+                    int slot = s_GetSavesActionIdx();
+
+                    SDL_assert_release(IF_INRANGE(slot, 1, maxSaveSlots));
+
+                    DeleteSave(selWorld, slot);
                     FindSaves();
-                    MenuCursor = c_menuItemSavesDelete;
+
+                    MenuMode -= MENU_SELECT_SLOT_DELETE_ADD;
+                    MenuCursor = s_GetSavesPageMenuOffset() + (c_menuSavesPageLength + c_menuItemSavesDelete);
+
                     PlaySoundMenu(SFX_LavaMonster);
                     MenuCursorCanMove = false;
                 }
@@ -2023,21 +2200,44 @@ static void s_drawGameTypeTitle(int x, int y)
 
 static void s_drawGameSaves(int MenuX, int MenuY)
 {
-    int A;
+    int page_count = s_GetCurrentSavesPageCount();
+    int current_page = MenuCursor / c_menuSavesPageLength;
 
-    for(A = 1; A <= maxSaveSlots; A++)
+    // draw page indicator
+    if(page_count > 1)
+    {
+        int lX_base = MenuX + 8;
+        int cY = MenuY + (c_menuSavesPerPage * 30) - 6;
+
+        for(int i = 0; i < page_count; i++)
+        {
+            int lX = lX_base + i * 64;
+            int h = (current_page == i) ? 8 : 6;
+            int w = 56;
+            uint8_t alpha = (current_page == i) ? 255 : 191;
+            XTColor fill = (current_page == i) ? XTColorF(0.6f, 1.f, 1.f).with_alpha(alpha) : XTColor(255, 255, 255, alpha);
+            XRender::renderRect(lX,     cY - h / 2,     w,     h,     {0, 0, 0, alpha});
+            XRender::renderRect(lX + 2, cY - h / 2 + 2, w - 4, h - 4, fill);
+        }
+    }
+
+    // draw saves
+    int page_offset = s_GetSavesPageSaveOffset();
+    for(int A = 1; A <= c_menuSavesPerPage && page_offset + A <= maxSaveSlots; A++)
     {
         int posY = MenuY - 30 + (A * 30);
 
-        if(SaveSlotInfo[A].Progress >= 0)
+        const auto& slot_info = SaveSlotInfo[page_offset + A];
+
+        if(slot_info.Progress >= 0)
         {
             // "SLOT {0} ... {1}%"
-            std::string p = fmt::format_ne(g_mainMenu.gameSlotContinue, A, SaveSlotInfo[A].Progress);
+            std::string p = fmt::format_ne(g_mainMenu.gameSlotContinue, page_offset + A, slot_info.Progress);
             int len = SuperTextPixLen(p, 3);
 
             SuperPrint(p, 3, MenuX, posY);
 
-            if(SaveSlotInfo[A].Stars > 0)
+            if(slot_info.Stars > 0)
             {
                 len += 4;
                 XRender::renderTexture(MenuX + len, posY + 1,
@@ -2050,15 +2250,17 @@ static void s_drawGameSaves(int MenuX, int MenuY)
                                       GFX.Interface[1], 0, 0);
 
                 len += GFX.Interface[1].w + 4;
-                SuperPrint(fmt::format_ne("{0}", SaveSlotInfo[A].Stars), 3, MenuX + len, posY);
+                SuperPrint(fmt::format_ne("{0}", slot_info.Stars), 3, MenuX + len, posY);
             }
         }
         else
         {
             // "SLOT {0} ... NEW GAME"
-            SuperPrint(fmt::format_ne(g_mainMenu.gameSlotNew, A), 3, MenuX, posY);
+            SuperPrint(fmt::format_ne(g_mainMenu.gameSlotNew, page_offset + A), 3, MenuX, posY);
         }
     }
+
+    int A = c_menuSavesPerPage + 1;
 
     if(MenuMode == MENU_SELECT_SLOT_1P || MenuMode == MENU_SELECT_SLOT_2P)
     {
@@ -2067,13 +2269,16 @@ static void s_drawGameSaves(int MenuX, int MenuY)
         SuperPrint(g_mainMenu.gameEraseSave, 3, MenuX, MenuY - 30 + (A * 30));
     }
 
-    if(MenuCursor < 0 || MenuCursor >= maxSaveSlots || (MenuMode != MENU_SELECT_SLOT_1P && MenuMode != MENU_SELECT_SLOT_2P) || SaveSlotInfo[MenuCursor + 1].Progress < 0)
+    int save_slot = s_GetSavesActionIdx();
+
+    if(save_slot < 1 || save_slot > maxSaveSlots || (MenuMode != MENU_SELECT_SLOT_1P && MenuMode != MENU_SELECT_SLOT_2P) || SaveSlotInfo[save_slot].Progress < 0)
         return;
 
-    const auto& info = SaveSlotInfo[MenuCursor + 1];
+    // draw save slot info
+    const auto& info = SaveSlotInfo[save_slot];
 
     int infobox_x = ScreenW / 2 - 240;
-    int infobox_y = MenuY + 145 + c_menuSavesOffsetY;
+    int infobox_y = MenuY + 145;
 
     int row_1 = infobox_y + 10;
     int row_2 = infobox_y + 42;
@@ -2382,7 +2587,7 @@ void mainMenuDraw()
         s_drawGameTypeTitle(MenuX, MenuY - 70);
         SuperPrint(SelectWorld[selWorld].WorldName, 3, MenuX, MenuY - 40, XTColorF(0.6f, 1.f, 1.f));
         s_drawGameSaves(MenuX, MenuY);
-        XRender::renderTexture(MenuX - 20, MenuY + (MenuCursor * 30), GFX.MCursor[0]);
+        XRender::renderTexture(MenuX - 20, MenuY + ((MenuCursor - s_GetSavesPageMenuOffset()) * 30), GFX.MCursor[0]);
     }
 
     else if(MenuMode == MENU_SELECT_SLOT_1P_COPY_S1 || MenuMode == MENU_SELECT_SLOT_2P_COPY_S1 ||
@@ -2399,14 +2604,16 @@ void mainMenuDraw()
 
         if(MenuMode == MENU_SELECT_SLOT_1P_COPY_S2 || MenuMode == MENU_SELECT_SLOT_2P_COPY_S2)
         {
-            XRender::renderTexture(MenuX - 20, MenuY + ((menuCopySaveSrc - 1) * 30), GFX.MCursor[0]);
-            XRender::renderTexture(MenuX - 20, MenuY + (MenuCursor * 30), GFX.MCursor[3]);
+            if((menuCopySaveSrc - 1) / c_menuSavesPerPage == MenuCursor / c_menuSavesPageLength)
+                XRender::renderTexture(MenuX - 20, MenuY + ((menuCopySaveSrc - 1 - s_GetSavesPageSaveOffset()) * 30), GFX.MCursor[0]);
+
+            XRender::renderTexture(MenuX - 20, MenuY + ((MenuCursor - s_GetSavesPageMenuOffset()) * 30), GFX.MCursor[3]);
         }
         else
-            XRender::renderTexture(MenuX - 20, MenuY + (MenuCursor * 30), GFX.MCursor[0]);
+            XRender::renderTexture(MenuX - 20, MenuY + ((MenuCursor - s_GetSavesPageMenuOffset()) * 30), GFX.MCursor[0]);
     }
 
-    else if(MenuMode == MENU_SELECT_SLOT_1P_DELETE || MenuMode == MENU_SELECT_SLOT_2P_DELETE) // Copy save
+    else if(MenuMode == MENU_SELECT_SLOT_1P_DELETE || MenuMode == MENU_SELECT_SLOT_2P_DELETE) // Delete save
     {
         s_drawGameTypeTitle(MenuX, MenuY - 70);
         SuperPrint(SelectWorld[selWorld].WorldName, 3, MenuX, MenuY - 40, XTColorF(0.6f, 1.f, 1.f));
@@ -2414,7 +2621,7 @@ void mainMenuDraw()
 
         SuperPrint(g_mainMenu.gameEraseSlot, 3, MenuX, MenuY + c_menuSavesFooterHint, XTColorF(1.0f, 0.7f, 0.7f));
 
-        XRender::renderTexture(MenuX - 20, MenuY + (MenuCursor * 30), GFX.MCursor[0]);
+        XRender::renderTexture(MenuX - 20, MenuY + ((MenuCursor - s_GetSavesPageMenuOffset()) * 30), GFX.MCursor[0]);
     }
 
     // Options Menu

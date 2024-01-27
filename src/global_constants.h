@@ -70,7 +70,7 @@ const int maxCreditsLines = 200;
 #ifdef LOW_MEM
 const int maxSaveSlots = 3;
 #else
-const int maxSaveSlots = 5;
+const int maxSaveSlots = 6;
 #endif
 
 const int maxWorldCredits = 100;

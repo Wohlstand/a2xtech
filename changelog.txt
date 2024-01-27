@@ -2,7 +2,7 @@ TheXTech Changelog.
 
 Changelog for 1.3.7-dev
 -Add ability to trigger event layer smoke in the in-game editor (@ds-sloth)
--Extended the number of game save slots to five (@Wohlstand)
+-Extended the number of game save slots to six (@Wohlstand, @ds-sloth).
 -Add tracking for medals collected in levels (@ds-sloth)
 -Save the number of medals / stars that exist in levels to speed up subsequent loads (@ds-sloth)
 -Fix thrower vertical position logic in split-screen, guarded by compat flag modern-npc-camera-logic (@ds-sloth)
