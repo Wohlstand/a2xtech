@@ -53,7 +53,33 @@
 #define SDL_RenderCopyExF SDL_RenderCopyEx
 #endif
 
+static inline uint32_t pow2roundup(uint32_t x)
+{
+    if(x == 0)
+        return 0;
 
+    --x;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    return x + 1;
+}
+
+static inline int32_t pow2roundup(int32_t x)
+{
+    if(x < 0)
+        return 0;
+
+    --x;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    return x + 1;
+}
 
 RenderSDL::RenderSDL() :
     AbstractRender_t()
@@ -82,7 +108,7 @@ bool RenderSDL::hasFrameBuffer()
 
 bool RenderSDL::initRender(SDL_Window *window)
 {
-    pLogDebug("Init renderer settings...");
+    pLogDebug("Render SDL: Init...");
 
     if(!AbstractRender_t::init())
         return false;
@@ -90,6 +116,18 @@ bool RenderSDL::initRender(SDL_Window *window)
     m_window = window;
 
     Uint32 renderFlags = 0;
+
+    int numRenders = SDL_GetNumRenderDrivers();
+    SDL_RendererInfo info;
+    for(int i = 0; i < numRenders; ++i)
+    {
+        SDL_GetRenderDriverInfo(i, &info);
+        pLogDebug("Render SDL: Render device: %s, flags: %u, max-w: %u, max-h: %u",
+                  info.name,
+                  info.flags,
+                  info.max_texture_width,
+                  info.max_texture_height);
+    }
 
     switch(g_config.render_mode)
     {
@@ -99,7 +137,7 @@ bool RenderSDL::initRender(SDL_Window *window)
         {
             renderFlags = SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC;
             g_config.render_mode.obtained = Config_t::RENDER_ACCELERATED_SDL;
-            pLogDebug("Using accelerated rendering with a vertical synchronization");
+            pLogDebug("Render SDL: Using accelerated rendering with a vertical synchronization");
             m_gRenderer = SDL_CreateRenderer(window, -1, renderFlags | SDL_RENDERER_TARGETTEXTURE); // Try to make renderer
             if(m_gRenderer)
                 break; // All okay
@@ -110,7 +148,7 @@ bool RenderSDL::initRender(SDL_Window *window)
 
         renderFlags = SDL_RENDERER_ACCELERATED;
         g_config.render_mode.obtained = Config_t::RENDER_ACCELERATED_SDL;
-        pLogDebug("Using accelerated rendering");
+        pLogDebug("Render SDL: Using accelerated rendering");
         m_gRenderer = SDL_CreateRenderer(window, -1, renderFlags | SDL_RENDERER_TARGETTEXTURE); // Try to make renderer
         if(m_gRenderer)
             break; // All okay
@@ -120,12 +158,12 @@ bool RenderSDL::initRender(SDL_Window *window)
     case Config_t::RENDER_SOFTWARE:
         renderFlags = SDL_RENDERER_SOFTWARE;
         g_config.render_mode.obtained = Config_t::RENDER_SOFTWARE;
-        pLogDebug("Using software rendering");
+        pLogDebug("Render SDL: Using software rendering");
         m_gRenderer = SDL_CreateRenderer(window, -1, renderFlags | SDL_RENDERER_TARGETTEXTURE); // Try to make renderer
         if(m_gRenderer)
             break; // All okay
 
-        pLogCritical("Unable to create renderer!");
+        pLogCritical("Render SDL: Unable to create renderer!");
         return false;
     }
 
@@ -136,11 +174,26 @@ bool RenderSDL::initRender(SDL_Window *window)
     m_maxTextureWidth = ri.max_texture_width;
     m_maxTextureHeight = ri.max_texture_height;
 
-    m_tBuffer = SDL_CreateTexture(m_gRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, ScaleWidth, ScaleHeight);
+    m_tBuffer = SDL_CreateTexture(m_gRenderer,
+                                  SDL_PIXELFORMAT_ARGB8888,
+                                  SDL_TEXTUREACCESS_TARGET,
+                                  ScaleWidth, ScaleHeight);
+
     if(!m_tBuffer)
     {
-        pLogWarning("Unable to create texture render buffer: %s", SDL_GetError());
-        pLogDebug("Continue without of render to texture. The ability to resize the window will be disabled.");
+        pLogWarning("Render SDL: Failed to create the normal texture render buffer: %s, trying to create a power-2 texture...", SDL_GetError());
+        m_pow2 = true;
+        m_tBuffer = SDL_CreateTexture(m_gRenderer,
+                                      SDL_PIXELFORMAT_ARGB8888,
+                                      SDL_TEXTUREACCESS_TARGET,
+                                      pow2roundup(ScaleWidth), pow2roundup(ScaleHeight));
+    }
+
+    if(!m_tBuffer)
+    {
+        m_pow2 = false;
+        pLogWarning("Render SDL: Unable to create texture render buffer: %s", SDL_GetError());
+        pLogDebug("Render SDL: Continue without of render to texture. The ability to resize the window will be disabled.");
         SDL_SetWindowResizable(window, SDL_FALSE);
         m_tBufferDisabled = true;
     }
@@ -315,10 +368,15 @@ void RenderSDL::updateViewport()
         else
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
-        SDL_DestroyTexture(m_tBuffer);
+        if(!m_tBufferDisabled)
+        {
+            SDL_DestroyTexture(m_tBuffer);
 
-        m_tBuffer = SDL_CreateTexture(m_gRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, XRender::TargetW, XRender::TargetH);
-        SDL_SetRenderTarget(m_gRenderer, m_tBuffer);
+            m_tBuffer = SDL_CreateTexture(m_gRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET,
+                                          m_pow2 ? pow2roundup(XRender::TargetW) : XRender::TargetW,
+                                          m_pow2 ? pow2roundup(XRender::TargetH) : XRender::TargetH);
+            SDL_SetRenderTarget(m_gRenderer, m_tBuffer);
+        }
 
         // reset scaling setting for images loaded later
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
@@ -470,8 +528,34 @@ void RenderSDL::loadTextureInternal(StdPicture &target, uint32_t width, uint32_t
                                        FI_RGBA_GREEN_MASK,
                                        FI_RGBA_BLUE_MASK,
                                        FI_RGBA_ALPHA_MASK);
+
     if(surface)
+    {
+textureTryAgain:
+        if(m_pow2)
+        {
+            uint32_t newW = pow2roundup(width);
+            uint32_t newH = pow2roundup(height);
+            pLogDebug("Render SDL: Converting surface into Power-2...");
+            SDL_Surface *newSurface = SDL_CreateRGBSurfaceWithFormat(0, newW, newH, 32, SDL_PIXELFORMAT_ARGB8888);
+            if(newSurface)
+            {
+                SDL_Rect rect = {0, 0, (int)width, (int)height};
+                SDL_LowerBlit(surface, &rect, newSurface, &rect);
+                SDL_FreeSurface(surface);
+                surface = newSurface;
+            }
+        }
+
         texture = SDL_CreateTextureFromSurface(m_gRenderer, surface);
+
+        if(!m_pow2 && !texture) // Try to re-make texture again
+        {
+            pLogWarning("Render SDL: Failed to load texture (%s), trying to turn on the Power-2 mode...", SDL_GetError());
+            m_pow2 = true;
+            goto textureTryAgain;
+        }
+    }
 
     SDL_FreeSurface(surface);
 
@@ -692,7 +776,7 @@ void RenderSDL::execute(const RenderOp& op)
             const SDL_RendererFlip flip = (SDL_RendererFlip)(op.traits & 3);
 
             double angle = (op.traits & RenderOp::Traits::rotation)
-                ? double(op.angle) * (360. / 65536.)
+                ? double(op.angle) * (360.0 / 65536.0)
                 : 0.;
 
             SDL_RenderCopyEx(m_gRenderer, tx.d.texture, sourceRectPtr, &destRect,
@@ -899,7 +983,7 @@ void RenderSDL::renderTextureScale(double xDst, double yDst, double wDst, double
     RenderOp& op = m_render_queue.push(m_recent_draw_plane);
 
     op.type = RenderOp::Type::texture;
-    op.traits = 0;
+    op.traits = m_pow2 ? RenderOp::Traits::src_rect : 0;
 
     op.texture = &tx;
 
@@ -907,6 +991,14 @@ void RenderSDL::renderTextureScale(double xDst, double yDst, double wDst, double
     op.yDst = Maths::iRound(yDst) + m_viewport_offset_y;
     op.wDst = Maths::iRound(wDst);
     op.hDst = Maths::iRound(hDst);
+
+    if(m_pow2)
+    {
+        op.xSrc = 0;
+        op.ySrc = 0;
+        op.wSrc = tx.d.w_scale * tx.w;
+        op.hSrc = tx.d.h_scale * tx.h;
+    }
 
     op.color = color;
 }
@@ -1003,7 +1095,7 @@ void RenderSDL::renderTexture(float xDst, float yDst,
     RenderOp& op = m_render_queue.push(m_recent_draw_plane);
 
     op.type = RenderOp::Type::texture;
-    op.traits = 0;
+    op.traits = m_pow2 ? RenderOp::Traits::src_rect : 0;
 
     op.texture = &tx;
 
@@ -1011,6 +1103,14 @@ void RenderSDL::renderTexture(float xDst, float yDst,
     op.yDst = Maths::iRound(yDst) + m_viewport_offset_y;
     op.wDst = tx.w;
     op.hDst = tx.h;
+
+    if(m_pow2)
+    {
+        op.xSrc = 0;
+        op.ySrc = 0;
+        op.wSrc = tx.d.w_scale * tx.w;
+        op.hSrc = tx.d.h_scale * tx.h;
+    }
 
     op.color = color;
 }

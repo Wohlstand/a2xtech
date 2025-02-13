@@ -44,6 +44,8 @@ class RenderSDL final : public AbstractRender_t
     SDL_Texture  *m_recentTarget = nullptr;
     std::set<StdPicture *> m_loadedPictures;
 
+    bool m_pow2 = false;
+
     // queue of render ops
     RenderQueue m_render_queue;
 
