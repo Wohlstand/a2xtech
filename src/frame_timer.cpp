@@ -681,7 +681,7 @@ void frameRenderEnd()
     if(s_doUpdate <= 0)
     {
         s_stopProcessing = getNanoTime();
-        nanotime_t newTime = g_config.enable_frameskip ? (s_stopProcessing - s_startProcessing) * 3 : 0;
+        nanotime_t newTime = g_config.enable_frameskip ? (s_stopProcessing - s_startProcessing): 0;
         // D_pLogDebug("newTime/nano=%lld (%lld)", newTime/c_frameRateNano, newTime / 1000000);
         if(newTime > c_frameRateNano * 25) // Limit 25 frames being skipped maximum
         {
@@ -689,7 +689,7 @@ void frameRenderEnd()
             newTime = c_frameRateNano * 25;
         }
 
-        s_doUpdate += newTime;
+        s_doUpdate += newTime * 300 / 166;
         s_goalTime = double(SDL_GetTicks() + (newTime / 1000000));
     }
 #endif
