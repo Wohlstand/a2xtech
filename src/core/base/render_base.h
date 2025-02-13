@@ -78,6 +78,12 @@ public:
      */
     virtual bool isWorking() = 0;
 
+    /*!
+     * \brief Tells is frame buffer is currently available or not
+     * \return true if framebuffer is available
+     */
+    virtual bool hasFrameBuffer() = 0;
+
     virtual bool initRender(SDL_Window *window) = 0;
 
     /*!

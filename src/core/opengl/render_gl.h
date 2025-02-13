@@ -1,4 +1,4 @@
-﻿/*
+/*
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
@@ -575,6 +575,8 @@ public:
     unsigned int SDL_InitFlags() override;
 
     bool isWorking() override;
+
+    bool hasFrameBuffer() override;
 
     bool initRender(SDL_Window *window) override;
 

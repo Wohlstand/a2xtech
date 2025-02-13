@@ -1,4 +1,4 @@
-﻿/*
+/*
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
@@ -152,7 +152,7 @@ bool FrmMain::initSystem(const CmdLineSetup_t &setup)
     if(!res)
     {
 #ifndef THEXTECH_NO_SDL_CORE
-    CoreSDL::quit();
+        CoreSDL::quit();
 #endif
         return true;
     }

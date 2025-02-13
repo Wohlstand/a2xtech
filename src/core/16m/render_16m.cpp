@@ -1,4 +1,4 @@
-﻿/*
+/*
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
@@ -57,6 +57,8 @@
 
 namespace XRender
 {
+
+static bool g_is_working = false;
 
 bool g_in_frame = false;
 uint64_t s_last_frame_start = 0;
@@ -483,6 +485,16 @@ inline bool GL_DrawImage_Custom_Basic(int name, int flags,
     return true;
 }
 
+bool isWorking()
+{
+    return g_is_working;
+}
+
+bool hasFrameBuffer()
+{
+    return true;
+}
+
 bool init()
 {
     lcdMainOnBottom();
@@ -526,6 +538,8 @@ bool init()
     glFogShift(0);
 #endif
 
+    g_is_working = true;
+
     updateViewport();
 
     return true;
@@ -533,6 +547,7 @@ bool init()
 
 void quit()
 {
+    g_is_working = false;
 }
 
 bool ready_for_frame()

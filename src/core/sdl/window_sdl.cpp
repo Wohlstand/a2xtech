@@ -38,6 +38,8 @@
 #ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
 #   include "pge_cpu_arch.h"
 
+static bool s_hasFrameBuffer = false;
+
 static int s_fsTypeToSDL(int type)
 {
     switch(type)
