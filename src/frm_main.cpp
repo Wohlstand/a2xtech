@@ -234,16 +234,16 @@ bool FrmMain::initSystem(const CmdLineSetup_t &setup)
     }
 
 #ifdef RENDER_FULLSCREEN_ALWAYS // Use a full-screen on Android & PS Vita mode by default
-    window->setFullScreen(true);
-    window->show();
+    XWindow::setFullScreen(true);
+    XWindow::show();
 #else
 #   ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
     WindowSDL::setHasFrameBuffer(m_render->hasFrameBuffer());
-    window->setFullScreenType(g_config.fullscreen_type);
-    window->setFullScreen(g_config.fullscreen);
+    XWindow::setFullScreenType(g_config.fullscreen_type);
+    XWindow::setFullScreen(g_config.fullscreen);
 #   endif
 #   ifdef _WIN32
-    window->show();
+    XWindow::show();
 #   endif
 #endif
 
