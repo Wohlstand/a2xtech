@@ -223,6 +223,7 @@ bool WindowSDL::initSDL(uint32_t windowInitFlags)
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
     if(m_screen_orig_w == 0 || m_screen_orig_h == 0)
     {
         int display = SDL_GetWindowDisplayIndex(m_window);
@@ -237,6 +238,7 @@ bool WindowSDL::initSDL(uint32_t windowInitFlags)
         m_screen_orig_w = mode.w;
         m_screen_orig_h = mode.h;
     }
+#endif // RENDER_FULLSCREEN_TYPES_SUPPORTED
 
 #ifdef __EMSCRIPTEN__
     EM_ASM(
