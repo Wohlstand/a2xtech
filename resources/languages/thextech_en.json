@@ -655,9 +655,9 @@
                     "_name": "Fullscreen type",
                     "auto": "Auto",
                     "desktop": "Desktop",
-                    "desktop-tip": "Stretch the window, keep real screen resolution",
+                    "desktop-tip": "Keep the current screen resolution",
                     "real": "Exclusive",
-                    "real-tip": "The real screen resolution will be changed"
+                    "real-tip": "Set physical screen resolution"
                 }
             },
             "audio": {
