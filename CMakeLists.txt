@@ -1045,7 +1045,7 @@ else()
         src/core/power/power_sdl.cpp
     )
 
-    if(NOT THEXTECH_FORCE_FULLSCREEN)
+    if(NOT THEXTECH_FORCE_FULLSCREEN AND NOT EMSCRIPTEN)
         add_definitions(-DRENDER_FULLSCREEN_TYPES_SUPPORTED)
     endif()
 
