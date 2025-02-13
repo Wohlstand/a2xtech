@@ -565,6 +565,26 @@ public:
     };
 #endif
 
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+    enum FullScreenType
+    {
+        FULLSCREEN_TYPE_AUTO = 0,
+        FULLSCREEN_TYPE_DESKTOP = 1,
+        FULLSCREEN_TYPE_REAL = 2
+    };
+    setup_enum_t fullscreen_type{this,
+        {
+            {FULLSCREEN_TYPE_AUTO, "auto", "Auto", "Auto-choice of optimal fullscreen type"},
+            {FULLSCREEN_TYPE_DESKTOP, "desktop", "Desktop", "Stretch the window, keep real screen resolution"},
+            {FULLSCREEN_TYPE_REAL, "real", "Real", "Real screen resolution will be changed"},
+        },
+        defaults(FULLSCREEN_TYPE_AUTO), {},
+        Scope::Config,
+        "fullscreen-type", "Fullscreen type", nullptr,
+        config_fullscreen_type_set
+    };
+#endif // RENDER_FULLSCREEN_TYPES_SUPPORTED
+
 #ifndef THEXTECH_NO_SDL_BUILD
     /* ---- Advanced - Audio ----*/
     subsection advanced_audio{this, "advanced-audio", "Audio"};

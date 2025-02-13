@@ -23,6 +23,9 @@
 
 #include "core/msgbox.h"
 #include "core/events.h"
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+#   include "core/window.h"
+#endif
 
 #include "config.h"
 #include "config/config_hooks.h"
@@ -60,6 +63,12 @@ void config_res_set()
     if(GameIsActive && (GameMenu || GamePaused == PauseCode::Options || g_config.internal_res.m_set == ConfigSetLevel::cheat))
         UpdateWindowRes();
     UpdateInternalRes();
+
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+    // Sync the real resolution after applying an update
+    if(!XWindow::is_nullptr())
+        XWindow::syncFullScreenRes();
+#endif // RENDER_FULLSCREEN_TYPES_SUPPORTED
 }
 
 void config_rendermode_set()
@@ -90,6 +99,16 @@ void config_fullscreen_set()
 
     XEvents::doEvents();
 }
+
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+void config_fullscreen_type_set()
+{
+    if(!GameIsActive)
+        return;
+
+    XWindow::setFullScreenType(g_config.fullscreen_type);
+}
+#endif // RENDER_FULLSCREEN_TYPES_SUPPORTED
 
 void config_mountdrums_set()
 {

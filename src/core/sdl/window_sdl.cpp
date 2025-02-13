@@ -18,7 +18,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef _WIN32
+#   include <winternl.h>
+#endif
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_cpuinfo.h>
 
 #include <Logger/logger.h>
 #include <Graphics/graphics_funcs.h>
@@ -28,8 +32,32 @@
 #include "window_sdl.h"
 #include "../render.h"
 #include "config.h"
-#include "screen.h"
 #include "../version.h"
+
+
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+#   include "pge_cpu_arch.h"
+
+static int s_fsTypeToSDL(int type)
+{
+    switch(type)
+    {
+    case 0:
+    {
+#if defined(PGE_CPU_x86_32) || defined(PGE_CPU_ARM32) || defined(PGE_CPU_PPC32)
+        // On 32-bit architecures
+        return SDL_WINDOW_FULLSCREEN;
+#endif
+    }
+    case 1:
+    default:
+        return SDL_WINDOW_FULLSCREEN_DESKTOP;
+    case 2:
+        return SDL_WINDOW_FULLSCREEN;
+    }
+}
+#endif
+
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/html5.h>
@@ -131,6 +159,10 @@ bool WindowSDL::initSDL(uint32_t windowInitFlags)
     windowInitFlags |= SDL_WINDOW_HIDDEN;
 #endif
 
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+    m_fullscreen_type = g_config.fullscreen_type;
+#endif
+
     // restore fullscreen state
     if(m_fullscreen)
         windowInitFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -191,6 +223,21 @@ bool WindowSDL::initSDL(uint32_t windowInitFlags)
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
+    if(m_screen_orig_w == 0 || m_screen_orig_h == 0)
+    {
+        int display = SDL_GetWindowDisplayIndex(m_window);
+        SDL_DisplayMode mode;
+
+        if(SDL_GetCurrentDisplayMode(display, &mode) < 0)
+        {
+            pLogWarning("Getting current display mode failed: %s", SDL_GetError());
+            return -1;
+        }
+
+        m_screen_orig_w = mode.w;
+        m_screen_orig_h = mode.h;
+    }
+
 #ifdef __EMSCRIPTEN__
     EM_ASM(
         document.documentElement.id = "thextech-document";
@@ -199,11 +246,17 @@ bool WindowSDL::initSDL(uint32_t windowInitFlags)
     s_emscriptenFillBrowser();
 #endif
 
-#if RENDER_FULLSCREEN_ALWAYS // Use a full-screen on Android & PS Vita mode by default
+#ifdef RENDER_FULLSCREEN_ALWAYS // Use a full-screen on Android & PS Vita mode by default
     setFullScreen(true);
     show();
 #else
+#   ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+    setFullScreenType(g_config.fullscreen_type);
     setFullScreen(g_config.fullscreen);
+#   endif
+#   ifdef _WIN32
+    show();
+#   endif
 #endif
 
     return res;
@@ -212,7 +265,14 @@ bool WindowSDL::initSDL(uint32_t windowInitFlags)
 void WindowSDL::close()
 {
     if(m_window)
+    {
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+        // Turn the windowed mode before quit, otherwise, on some old systems screen resolution won't restore back
+        if((SDL_GetWindowFlags(m_window) & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN)
+            SDL_SetWindowFullscreen(m_window, SDL_FALSE);
+#endif
         SDL_DestroyWindow(m_window);
+    }
     m_window = nullptr;
 }
 
@@ -349,11 +409,15 @@ int WindowSDL::setFullScreen(bool fs)
         if(fs)
         {
             // Swith to FULLSCREEN mode
-            if(SDL_SetWindowFullscreen(m_window, SDL_WINDOW_FULLSCREEN_DESKTOP) < 0)
+            if(SDL_SetWindowFullscreen(m_window, m_fullscreen_type_real) < 0)
             {
                 pLogWarning("Setting fullscreen failed: %s", SDL_GetError());
                 return -1;
             }
+
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+            syncFullScreenRes();
+#endif
 
             // Hide mouse cursor in full screen mdoe
             SDL_ShowCursor(SDL_DISABLE);
@@ -374,6 +438,68 @@ int WindowSDL::setFullScreen(bool fs)
 
     return 0;
 }
+
+
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+
+int WindowSDL::setFullScreenType(int type)
+{
+    bool change_needed = m_fullscreen_type != type;
+    m_fullscreen_type = type;
+    m_fullscreen_type_real = s_fsTypeToSDL(type);
+
+    if(change_needed && m_fullscreen)
+    {
+        if(m_fullscreen_type_real == SDL_WINDOW_FULLSCREEN_DESKTOP)
+        {
+            if(SDL_SetWindowFullscreen(m_window, m_fullscreen_type_real) < 0)
+            {
+                pLogWarning("Setting fullscreen failed: %s", SDL_GetError());
+                return -1;
+            }
+        }
+        else if(m_fullscreen_type_real == SDL_WINDOW_FULLSCREEN)
+            return syncFullScreenRes();
+    }
+
+    return 0;
+}
+
+int WindowSDL::getFullScreenType()
+{
+    int flags = SDL_GetWindowFlags(m_window) & SDL_WINDOW_FULLSCREEN_DESKTOP;
+
+    if(flags == SDL_WINDOW_FULLSCREEN_DESKTOP)
+        return FULLSCREEN_TYPE_DESKTOP;
+
+    if(flags == SDL_WINDOW_FULLSCREEN)
+        return FULLSCREEN_TYPE_REAL;
+
+    return 0;
+}
+
+int WindowSDL::syncFullScreenRes()
+{
+    if(m_fullscreen_type_real != SDL_WINDOW_FULLSCREEN || !m_window)
+        return 0; // Nothing to do
+
+    int dst_w = XRender::TargetW;
+    int dst_h = (dst_w * m_screen_orig_h) / m_screen_orig_w;
+
+    SDL_SetWindowSize(m_window, dst_w, dst_h);
+
+    pLogDebug("Toggling screen into %d x %d resolution", dst_w, dst_h);
+
+    if(SDL_SetWindowFullscreen(m_window, m_fullscreen_type_real) < 0)
+    {
+        pLogWarning("Setting fullscreen failed: %s", SDL_GetError());
+        return -1;
+    }
+
+    return 0;
+}
+
+#endif // RENDER_FULLSCREEN_TYPES_SUPPORTED
 
 void WindowSDL::restoreWindow()
 {
