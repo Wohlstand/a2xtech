@@ -368,7 +368,15 @@ void RenderSDL::updateViewport()
         else
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
-        if(!m_tBufferDisabled)
+        bool powUpdateNeeded = !m_pow2;
+
+        if(m_pow2)
+        {
+            powUpdateNeeded |= pow2roundup(XRender::TargetW) != ScaleWidth;
+            powUpdateNeeded |= pow2roundup(XRender::TargetH) != ScaleHeight;
+        }
+
+        if(!m_tBufferDisabled && powUpdateNeeded)
         {
             SDL_DestroyTexture(m_tBuffer);
 
