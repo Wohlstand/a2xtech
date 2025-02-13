@@ -112,6 +112,8 @@ public:
     int setFullScreen(bool fs) override;
 
 #ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+    static void setHasFrameBuffer(bool has);
+
     /*!
      * \brief Sets the type of fullscreen (desktop or real)
      * \param type Fullscreen type: 0 auto, 1 desktop, 2 real

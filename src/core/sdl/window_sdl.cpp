@@ -40,6 +40,11 @@
 
 static bool s_hasFrameBuffer = false;
 
+void WindowSDL::setHasFrameBuffer(bool has)
+{
+    s_hasFrameBuffer = has;
+}
+
 static int s_fsTypeToSDL(int type)
 {
     switch(type)
@@ -49,7 +54,11 @@ static int s_fsTypeToSDL(int type)
 #if defined(PGE_CPU_x86_32) || defined(PGE_CPU_ARM32) || defined(PGE_CPU_PPC32)
         // On 32-bit architecures
         return SDL_WINDOW_FULLSCREEN;
+#else
+        if(!s_hasFrameBuffer)
+            return SDL_WINDOW_FULLSCREEN;
 #endif
+        break;
     }
     case 1:
     default:
@@ -57,6 +66,8 @@ static int s_fsTypeToSDL(int type)
     case 2:
         return SDL_WINDOW_FULLSCREEN;
     }
+
+    return SDL_WINDOW_FULLSCREEN_DESKTOP;
 }
 #endif
 
@@ -162,7 +173,7 @@ bool WindowSDL::initSDL(uint32_t windowInitFlags)
 #endif
 
 #ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
-    m_fullscreen_type = g_config.fullscreen_type;
+    m_fullscreen_type = -1; // Will be initialized later
 #endif
 
     // restore fullscreen state
@@ -248,19 +259,6 @@ bool WindowSDL::initSDL(uint32_t windowInitFlags)
         document.body.style.overflow = "hidden";
     );
     s_emscriptenFillBrowser();
-#endif
-
-#ifdef RENDER_FULLSCREEN_ALWAYS // Use a full-screen on Android & PS Vita mode by default
-    setFullScreen(true);
-    show();
-#else
-#   ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
-    setFullScreenType(g_config.fullscreen_type);
-    setFullScreen(g_config.fullscreen);
-#   endif
-#   ifdef _WIN32
-    show();
-#   endif
 #endif
 
     return res;
