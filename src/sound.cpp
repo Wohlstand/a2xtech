@@ -34,6 +34,7 @@
 #include "main/screen_progress.h"
 
 #include "sound.h"
+#include "sound_thread.h"
 
 #ifdef THEXTECH_ENABLE_AUDIO_FX
 #include "sound/fx/reverb.h"
@@ -363,6 +364,8 @@ void InitMixerX()
         // Set channel finished callback to handle finished custom SFX
         Mix_ChannelFinished(&extSfxStopCallback);
 
+        StartSfxThread();
+
         g_mixerLoaded = true;
     }
 #endif // #ifndef THEXTECH_NO_SDL_BUILD
@@ -390,6 +393,8 @@ void QuitMixerX()
 {
     if(!g_mixerLoaded)
         return;
+
+    EndSfxThread();
 
     UnloadExtSounds();
 
@@ -751,7 +756,7 @@ void PlayMusic(const std::string &Alias, int fadeInMs)
         pLogWarning("Unknown music alias '%s'", Alias.c_str());
 }
 
-void PlaySfx(int Alias, int loops, int volume, uint8_t left, uint8_t right)
+void PlaySfx_Blocking(int Alias, int loops, int volume, uint8_t left, uint8_t right)
 {
     if(!g_mixerLoaded || (int)g_config.audio_sfx_volume == 0)
         return;

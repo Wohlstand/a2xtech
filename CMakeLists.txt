@@ -893,6 +893,10 @@ set(THEXTECH_SRC
     src/fontman/utf8_helpers.cpp
 )
 
+if(NOT THEXTECH_NO_SDL_BUILD)
+    list(APPEND THEXTECH_SRC src/sound_thread.cpp)
+endif()
+
 if(THEXTECH_ENABLE_TTF_SUPPORT)
     add_definitions(-DTHEXTECH_ENABLE_TTF_SUPPORT)
     list(APPEND THEXTECH_SRC

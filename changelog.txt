@@ -15,7 +15,8 @@ Changelog for 1.3.7.1-dev
 -Fix TheXTech 1.3.6.1 bug where a plant on a hidden moving layer would sometimes not appear after showing the layer (@ds-sloth, @Wohlstand)
 -Fixed a bug from the TheXTech 1.3.6 where music of a wrong section gets started when player enters level by a warp into section with no music (@Wohlstand)
 -Fix TheXTech 1.3.7 bug where rail platforms could get stuck below the current section (@ds-sloth, thanks to @Liebning for the report)
--Added real full-screen mode support to maintain good performance on weak devices (@Wohlstand)
+-3DS: fix bug where gameplay could slow down when audio performance is reduced (@ds-sloth)
+-Added exclusive full-screen mode support to maintain good performance on weak devices (@Wohlstand)
 
 Changelog for 1.3.7
 -Fix vanilla peculiarity where medals were sometimes not collected when killed, guarded by "fix-medal-kill" [Modern Mode] (@ds-sloth, thanks to @Superbloxen for the report)
