@@ -685,7 +685,7 @@ void frameRenderEnd()
         // D_pLogDebug("newTime/nano=%lld (%lld)", newTime/c_frameRateNano, newTime / 1000000);
         if(newTime > c_frameRateNano * 25) // Limit 25 frames being skipped maximum
         {
-            pLogDebug("frame_timer: Overloading detected: %lld frames to skip (%lld milliseconds delay)", newTime / c_frameRateNano, newTime / 1000000);
+            D_pLogDebug("frame_timer: Overloading detected: %lld frames to skip (%lld milliseconds delay)", newTime / c_frameRateNano, newTime / 1000000);
             newTime = c_frameRateNano * 25;
         }
 
