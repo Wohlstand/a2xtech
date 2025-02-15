@@ -1,4 +1,4 @@
-﻿/*
+/*
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
@@ -512,6 +512,16 @@ static inline void s_mergeBlend()
 static inline void s_fadeBlend()
 {
     C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_ZERO, GPU_SRC_ALPHA, GPU_ZERO, GPU_SRC_ALPHA);
+}
+
+bool isWorking()
+{
+    return s_render_inited;
+}
+
+bool hasFrameBuffer()
+{
+    return true;
 }
 
 bool init()

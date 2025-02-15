@@ -36,6 +36,13 @@ class WindowSDL final : public AbstractWindow_t
 
     bool m_fullscreen = false;
 
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+    int m_fullscreen_type = 0;
+    int m_fullscreen_type_real = 0;
+    int m_screen_orig_w = 0;
+    int m_screen_orig_h = 0;
+#endif
+
 public:
     WindowSDL();
     virtual ~WindowSDL();
@@ -103,6 +110,29 @@ public:
      * \return 1 when full-screen mode toggled, 0 when windowed mode toggled, -1 on any errors
      */
     int setFullScreen(bool fs) override;
+
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+    static void setHasFrameBuffer(bool has);
+
+    /*!
+     * \brief Sets the type of fullscreen (desktop or real)
+     * \param type Fullscreen type: 0 auto, 1 desktop, 2 real
+     * \return 1 when full-screen mode toggled, 0 when windowed mode toggled, -1 on any errors
+     */
+    int setFullScreenType(int type) override;
+
+    /*!
+     * \brief Get a type of full-screen (desktop or real)
+     * \return type of fullscreen
+     */
+    int getFullScreenType() override;
+
+    /*!
+     * \brief Only real full-screen mode: syncs the real resolution with the canvas
+     * \return 0 on success, -1 on any errors
+     */
+    int syncFullScreenRes() override;
+#endif // RENDER_FULLSCREEN_TYPES_SUPPORTED
 
     /*!
      * \brief Restore the size and position of a minimized or maximized window.

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
@@ -60,6 +60,7 @@ namespace XRender
 
 bool g_in_frame = false;
 
+static bool g_is_working = false;
 static RenderPlanes_t s_render_planes;
 
 #define DEFAULT_FIFO_SIZE   (256*1024)
@@ -573,6 +574,16 @@ void video_set_rmode()
     WPAD_SetVRes(WPAD_CHAN_ALL, g_rmode_w, g_rmode_h);
 }
 
+bool isWorking()
+{
+    return g_is_working;
+}
+
+bool hasFrameBuffer()
+{
+    return true;
+}
+
 bool init()
 {
     GXColor background = {0, 0, 0, 0xff};
@@ -628,6 +639,8 @@ bool init()
              look = {0.0F, 0.0F, -1.0F};
     guLookAt(view, &cam, &up, &look);
 
+    g_is_working = true;
+
     updateViewport();
 
     return true;
@@ -635,6 +648,7 @@ bool init()
 
 void quit()
 {
+    g_is_working = false;
     VIDEO_SetBlack(TRUE);
 }
 

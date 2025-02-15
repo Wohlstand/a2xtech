@@ -91,6 +91,11 @@ bool RenderGL::isWorking()
     return m_gContext;
 }
 
+bool RenderGL::hasFrameBuffer()
+{
+    return m_has_fbo;
+}
+
 RenderGL::VertexList& RenderGL::getOrderedDrawVertexList(RenderGL::DrawContext_t context, int depth)
 {
     // combine draw calls issued in sequence (except bitmask calls)

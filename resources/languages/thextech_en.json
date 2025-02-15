@@ -650,6 +650,14 @@
                     "fhd": "1920x1080 (FHD)",
                     "qhd": "2560x1440 (QHD)",
                     "qsmbx": "1600x1200 (QSMBX)"
+                },
+                "fullscreen-type": {
+                    "_name": "Fullscreen type",
+                    "auto": "Auto",
+                    "desktop": "Desktop",
+                    "desktop-tip": "Keep the current screen resolution",
+                    "real": "Exclusive",
+                    "real-tip": "Set physical screen resolution"
                 }
             },
             "audio": {

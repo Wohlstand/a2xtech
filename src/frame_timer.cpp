@@ -557,6 +557,7 @@ static inline void computeFrameTime2Real_2()
 #ifdef USE_NEW_FRAMESKIP
     if(s_doUpdate > 0)
         s_doUpdate -= c_frameRateNano;
+
     s_startProcessing = 0;
     s_stopProcessing = 0;
 #endif
@@ -568,6 +569,7 @@ static inline void computeFrameTime2Real_2()
             s_overTime = 0;
             s_gameTime = s_currentTicks;
         }
+
         s_cycleCount = 0;
         s_fpsTime = SDL_GetTicks() + 1000;
         s_goalTime = s_fpsTime;
@@ -593,6 +595,7 @@ static inline void computeFrameTime2Real_2()
                 pLogWarning("frame_timer: Adjusted sleep time got a too big value: %ld", (long)adjustedSleepTime);
                 adjustedSleepTime = 500000000;
             }
+
             xtech_nanosleep(adjustedSleepTime);
             auto e = getElapsedTime(start);
             nanotime_t overslept = e - adjustedSleepTime;
@@ -678,14 +681,15 @@ void frameRenderEnd()
     if(s_doUpdate <= 0)
     {
         s_stopProcessing = getNanoTime();
-        nanotime_t newTime = g_config.enable_frameskip ? (s_stopProcessing - s_startProcessing) : 0;
+        nanotime_t newTime = g_config.enable_frameskip ? (s_stopProcessing - s_startProcessing): 0;
         // D_pLogDebug("newTime/nano=%lld (%lld)", newTime/c_frameRateNano, newTime / 1000000);
         if(newTime > c_frameRateNano * 25) // Limit 25 frames being skipped maximum
         {
-            D_pLogDebug("Overloading detected: %lld frames to skip (%lld milliseconds delay)", newTime/c_frameRateNano, newTime / 1000000);
+            D_pLogDebug("frame_timer: Overloading detected: %lld frames to skip (%lld milliseconds delay)", newTime / c_frameRateNano, newTime / 1000000);
             newTime = c_frameRateNano * 25;
         }
-        s_doUpdate += newTime;
+
+        s_doUpdate += newTime * 300 / 166;
         s_goalTime = double(SDL_GetTicks() + (newTime / 1000000));
     }
 #endif

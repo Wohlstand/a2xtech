@@ -1,4 +1,4 @@
-﻿/*
+/*
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
@@ -44,6 +44,16 @@ namespace XRender
 
 int TargetW = 800;
 int TargetH = 600;
+
+bool isWorking()
+{
+    return true;
+}
+
+bool hasFrameBuffer()
+{
+    return false;
+}
 
 bool init()
 {

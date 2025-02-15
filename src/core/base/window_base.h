@@ -91,6 +91,34 @@ public:
      */
     virtual int setFullScreen(bool fs) = 0;
 
+    enum FullScreenType
+    {
+        FULLSCREEN_TYPE_AUTO = 0,
+        FULLSCREEN_TYPE_DESKTOP = 1,
+        FULLSCREEN_TYPE_REAL = 2
+    };
+
+#ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+    /*!
+     * \brief Sets the type of fullscreen (desktop or real)
+     * \param type Fullscreen type: 0 auto, 1 desktop, 2 real
+     * \return 1 when full-screen mode toggled, 0 when windowed mode toggled, -1 on any errors
+     */
+    virtual int setFullScreenType(int type) = 0;
+
+    /*!
+     * \brief Get a type of full-screen (desktop or real)
+     * \return type of fullscreen
+     */
+    virtual int getFullScreenType() = 0;
+
+    /*!
+     * \brief Only real full-screen mode: syncs the real resolution with the canvas
+     * \return 0 on success, -1 on any errors
+     */
+    virtual int syncFullScreenRes() = 0;
+#endif // RENDER_FULLSCREEN_TYPES_SUPPORTED
+
     /*!
      * \brief Restore the size and position of a minimized or maximized window.
      */

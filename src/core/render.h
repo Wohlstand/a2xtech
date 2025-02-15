@@ -114,6 +114,17 @@ E_INLINE bool isWorking() TAIL
 #endif
 
 /*!
+ * \brief Tells is frame buffer is currently available or not
+ * \return true if framebuffer is available
+ */
+E_INLINE  bool hasFrameBuffer() TAIL
+#ifndef RENDER_CUSTOM
+{
+    return g_render->hasFrameBuffer();
+}
+#endif
+
+/*!
  * \brief Call the repaint
  */
 E_INLINE void repaint() TAIL

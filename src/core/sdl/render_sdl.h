@@ -1,4 +1,4 @@
-﻿/*
+/*
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
@@ -43,6 +43,8 @@ class RenderSDL final : public AbstractRender_t
     bool          m_tBufferDisabled = false;
     SDL_Texture  *m_recentTarget = nullptr;
     std::set<StdPicture *> m_loadedPictures;
+
+    bool m_pow2 = false;
 
     // queue of render ops
     RenderQueue m_render_queue;
@@ -91,6 +93,8 @@ public:
     unsigned int SDL_InitFlags() override;
 
     bool isWorking() override;
+
+    bool hasFrameBuffer() override;
 
     bool initRender(SDL_Window *window) override;
 

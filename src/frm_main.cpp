@@ -1,4 +1,4 @@
-﻿/*
+/*
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
@@ -152,7 +152,7 @@ bool FrmMain::initSystem(const CmdLineSetup_t &setup)
     if(!res)
     {
 #ifndef THEXTECH_NO_SDL_CORE
-    CoreSDL::quit();
+        CoreSDL::quit();
 #endif
         return true;
     }
@@ -232,6 +232,20 @@ bool FrmMain::initSystem(const CmdLineSetup_t &setup)
         freeSystem();
         return true;
     }
+
+#ifdef RENDER_FULLSCREEN_ALWAYS // Use a full-screen on Android & PS Vita mode by default
+    XWindow::setFullScreen(true);
+    XWindow::show();
+#else
+#   ifdef RENDER_FULLSCREEN_TYPES_SUPPORTED
+    WindowSDL::setHasFrameBuffer(m_render->hasFrameBuffer());
+    XWindow::setFullScreenType(g_config.fullscreen_type);
+    XWindow::setFullScreen(g_config.fullscreen);
+#   endif
+#   ifdef _WIN32
+    XWindow::show();
+#   endif
+#endif
 
     XEvents::doEvents();
 
